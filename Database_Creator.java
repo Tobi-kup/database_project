@@ -1,24 +1,22 @@
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
-import java.sql.*;
 
-public class Database_Creator{
-  static void main(String[] args){
+public class Database_Creator {
 
-  String url = "https://hntarmduljscudcbhlvk.supabase.co/";
-  String user = "database_project";
-  String password = "database_project123";
+  public static void main(String[] args) {
 
-  try {
-    Connection conn = DriverManager.getConnection(url, user, password);
-    System.out.println("Verbunden!");
+    String url = "jdbc:postgresql://db.hntarmduljscudcbhlvk.supabase.co:5432/postgres";
+    String user = "postgres";
+    String password = "database_project123";
 
-  } catch (SQLException e) {
-    e.printStackTrace();
+    try {
+      Connection conn = DriverManager.getConnection(url, user, password);
+      System.out.println("Verbunden!");
+      conn.close();
+
+    } catch (SQLException e) {
+      e.printStackTrace();
+    }
   }
-
-//  Statement stmt = conn.createStatement();
-
-}
 }
