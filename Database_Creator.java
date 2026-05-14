@@ -4,7 +4,7 @@ import java.sql.SQLException;
 import java.sql.*;
 
 public class Database_Creator{
-  public static void main(String[] args){
+  static void main(String[] args){
 
   String url = "https://hntarmduljscudcbhlvk.supabase.co/";
   String user = "database_project";
@@ -18,7 +18,7 @@ public class Database_Creator{
     e.printStackTrace();
   }
 
-  Statement stmt = conn.createStatement();
+//  Statement stmt = conn.createStatement();
 
 }
 }
