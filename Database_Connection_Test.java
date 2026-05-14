@@ -9,6 +9,7 @@ public class Database_Connection_Test {
     //    private static final String USER     = "postgres";
     //    private static final String PASSWORD = "database_project123";
 
+    //pooling
     private static final String URL      = "jdbc:postgresql://aws-0-eu-west-1.pooler.supabase.com:6543/postgres";
     private static final String USER     = "postgres.hntarmduljscudcbhlvk";
     private static final String PASSWORD = "database_project123";
