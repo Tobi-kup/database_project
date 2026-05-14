@@ -1,3 +1,3 @@
 public static void main(String[] args){
-    System.out.print("leck euer max");
+    System.out.print("test");
 }
