@@ -4,8 +4,13 @@ import java.sql.SQLException;
 
 public class Database_Connection_Test {
 
-    private static final String URL      = "jdbc:postgresql://db.hntarmduljscudcbhlvk.supabase.co:5432/postgres";
-    private static final String USER     = "postgres";
+    //direct connection:
+    //    private static final String URL      = "jdbc:postgresql://db.hntarmduljscudcbhlvk.supabase.co:5432/postgres";
+    //    private static final String USER     = "postgres";
+    //    private static final String PASSWORD = "database_project123";
+
+    private static final String URL      = "jdbc:postgresql://aws-0-eu-west-1.pooler.supabase.com:6543/postgres";
+    private static final String USER     = "postgres.hntarmduljscudcbhlvk";
     private static final String PASSWORD = "database_project123";
 
     public static void main(String[] args) {
