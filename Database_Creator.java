@@ -6,10 +6,15 @@ import java.sql.*;
 public class Database_Creator {
 
   public static void main(String[] args) {
+    //direct connection
+    //String url = "jdbc:postgresql://db.hntarmduljscudcbhlvk.supabase.co:5432/postgres";
+    //String user = "postgres";
+    //String password = "database_project123";
 
-    String url = "jdbc:postgresql://db.hntarmduljscudcbhlvk.supabase.co:5432/postgres";
-    String user = "postgres";
-    String password = "database_project123";
+    //pooling
+    String url      = "jdbc:postgresql://aws-0-eu-west-1.pooler.supabase.com:6543/postgres";
+    final String user     = "postgres.hntarmduljscudcbhlvk";
+    final String password = "database_project123";
 
     try {
       Connection conn = DriverManager.getConnection(url, user, password);
