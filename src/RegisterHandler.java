@@ -14,7 +14,6 @@ public class RegisterHandler implements HttpHandler {
         HashMap<String,String> data = SPAHandler.parseJson(body);
 
         try(Connection conn = Database.getConnection()){
-            // Neue Spalte balance = 0
             PreparedStatement ps = conn.prepareStatement(
                     "INSERT INTO users(email,password,balance) VALUES(?,?,0)"
             );

@@ -1,43 +1,34 @@
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpExchange;
 import java.io.OutputStream;
-import java.util.ArrayList;
-import java.util.HashMap;
-import org.json.JSONObject;
+import java.util.List;
 import org.json.JSONArray;
 
 public class StocksListHandler implements HttpHandler {
 
     @Override
-    public void handle(HttpExchange exchange) throws java.io.IOException {
+    public void handle(HttpExchange exchange) {
 
-        String[] symbols = {"AAPL","GOOG","MSFT","NVDA","TSLA"};
-        ArrayList<HashMap<String,String>> stocks = new ArrayList<>();
+        try {
 
-        for(String s : symbols){
-            HashMap<String,String> stock = new HashMap<>();
-            stock.put("symbol", s);
+            List<org.json.JSONObject> stocks =
+                    StocksCache.getStocks();
 
-            try{
-                String json = StockAPI.getQuote(s);
-                JSONObject obj = new JSONObject(json).getJSONObject("Global Quote");
-                stock.put("price", obj.getString("05. price"));
-                stock.put("change", obj.getString("10. change percent"));
-            } catch(Exception e){
-                stock.put("price","N/A");
-                stock.put("change","N/A");
-            }
+            JSONArray arr = new JSONArray(stocks);
 
-            stocks.add(stock);
+            String response = arr.toString();
+
+            exchange.getResponseHeaders()
+                    .set("Content-Type", "application/json");
+
+            exchange.sendResponseHeaders(200, response.length());
+
+            OutputStream os = exchange.getResponseBody();
+            os.write(response.getBytes());
+            os.close();
+
+        } catch (Exception e) {
+            e.printStackTrace();
         }
-
-        JSONArray arr = new JSONArray(stocks);
-        String response = arr.toString();
-
-        exchange.getResponseHeaders().set("Content-Type","application/json");
-        exchange.sendResponseHeaders(200, response.getBytes().length);
-        OutputStream os = exchange.getResponseBody();
-        os.write(response.getBytes());
-        os.close();
     }
 }

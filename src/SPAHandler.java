@@ -1,14 +1,14 @@
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
+
+import java.io.IOException;
 import java.io.OutputStream;
 import java.util.HashMap;
 
 public class SPAHandler implements HttpHandler {
 
-    private static double userBalance = 0.0;
-
     @Override
-    public void handle(HttpExchange exchange) throws java.io.IOException {
+    public void handle(HttpExchange exchange) throws IOException {
 
         String html = """
         <!DOCTYPE html>
@@ -17,212 +17,574 @@ public class SPAHandler implements HttpHandler {
             <meta charset="UTF-8">
             <title>Stock Investment Simulator</title>
             <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
             <style>
-                body { font-family:'Segoe UI', sans-serif; background:linear-gradient(135deg,#667eea,#764ba2);
-                       height:100vh; margin:0; display:flex; justify-content:center; align-items:center;}
-                .container { background:#fff; padding:50px 40px; border-radius:20px; box-shadow:0 10px 30px rgba(0,0,0,0.2);
-                             width:100%; max-width:400px; text-align:center; overflow-y:auto; max-height:90vh;}
+                body {
+                    font-family:'Segoe UI', sans-serif;
+                    background:linear-gradient(135deg,#667eea,#764ba2);
+                    height:100vh;
+                    margin:0;
+                    display:flex;
+                    justify-content:center;
+                    align-items:center;
+                }
+
+                .container {
+                    background:#fff;
+                    padding:50px 40px;
+                    border-radius:20px;
+                    box-shadow:0 10px 30px rgba(0,0,0,0.2);
+                    width:100%;
+                    max-width:400px;
+                    text-align:center;
+                    overflow-y:auto;
+                    max-height:90vh;
+                }
+
                 h1 { color:#333; margin-bottom:20px; font-size:28px;}
-                input { width:100%; padding:12px 15px; margin:10px 0; border-radius:10px; border:1px solid #ccc; font-size:16px; display:block;}
-                input:focus { border-color:#667eea; outline:none; box-shadow:0 0 5px rgba(102,126,234,0.5);}
-                button { width:80%; padding:8px 12px; border:none; border-radius:10px; background:#667eea; color:white; font-size:14px; cursor:pointer;}
-                button:hover{ background:#5563c1;}
-                .secondary-button{width:auto;background:#f4f4f4;color:#333;border:1px solid #ccc;}
-                .secondary-button:hover{background:#e0e0e0;}
-                .hint-row { margin-top:10px; display:flex; justify-content:center; align-items:center; gap:8px; font-size:14px; color:#555;}
-                #top-bar { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; }
-                #message { color:green; margin-top:10px; }
-                #stocks-table { width:100%; border-collapse:collapse; }
-                #stocks-table th, #stocks-table td { border:1px solid #ccc; padding:10px; text-align:center; }
-                #stocks-table th { background:#667eea; color:white; }
+
+                input {
+                    width:100%;
+                    padding:12px;
+                    margin:10px 0;
+                    border-radius:10px;
+                    border:1px solid #ccc;
+                    font-size:16px;
+                    display:block;
+                    box-sizing:border-box;
+                
+                }
+
+                button {
+                    width:80%;
+                    padding:10px;
+                    border:none;
+                    border-radius:10px;
+                    background:#667eea;
+                    color:white;
+                    cursor:pointer;
+                    margin-top:5px;
+                }
+
+                button:hover { background:#5563c1; }
+
+                .secondary-button {
+                    width:auto;
+                    background:#f4f4f4;
+                    color:#333;
+                    border:1px solid #ccc;
+                }
+                
+                .secondary-button:hover{ background:#e0e0e0; }
+                
+                hint-row { 
+                    margin-top:10px; 
+                    display:flex; 
+                    justify-content:center; 
+                    align-items:center; 
+                    gap:8px; 
+                    font-size:14px; 
+                    color:#555;}
+                
+                
+                #top-bar {
+                    display:flex;
+                    justify-content:space-between;
+                    align-items:center;
+                }
+
+                #stocks-table {
+                    width:100%;
+                    border-collapse:collapse;
+                }
+
+                #stocks-table th, #stocks-table td {
+                    border:1px solid #ccc;
+                    padding:8px;
+                }
+
+                #stocks-table th {
+                    background:#667eea;
+                    color:white;
+                }
             </style>
         </head>
+
         <body>
         <div class="container" id="app-container"></div>
 
         <script>
-            let currentUser = null;
-            let portfolio = [];
-            let balance = 0;
 
-            const pages = {};
+        let currentUser = null;
+        let balance = 0;
+        let allStocks = [];
+        let selectedStock = null;
+        let portfolio = []
 
-            // --- Login ---
-            pages["login"] = `
-                <h1>Login</h1>
-                <input id="email" type="email" placeholder="Email">
-                <input id="password" type="password" placeholder="Password">
-                <button onclick="login()">Login</button>
-                <div class="hint-row">
-                    <span>Don't have an account?</span>
-                    <button class="secondary-button" onclick="showPage('register')">Register</button>
+        const pages = {};
+        
+        async function loadPortfolio(){
+            const res = await fetch("/portfolio?userId=" + currentUser);
+            const data = await res.json();
+            portfolio = data;
+            renderPortfolio();
+        }
+
+        // ---------------- LOGIN ----------------
+        pages["login"] = `
+            <h1>Login</h1>
+            <input id="email" type="email" placeholder="Email">
+            <input id="password" type="password" placeholder="Password">
+            <button onclick="login()">Login</button>
+            <div class="hint-row">
+                <span>Don't have an account?</span>
+                <button class="secondary-button" onclick="showPage('register')">Register</button>
+            </div>
+            <div id="message"></div>
+        `;
+
+        // ---------------- REGISTER ----------------
+        pages["register"] = `
+            <h1>Register</h1>
+            <input id="email" type="email" placeholder="Email">
+            <input id="password" type="password" placeholder="Password">
+            <button onclick="register()">Create Account</button>
+            <div class="hint-row">
+                <span>Already have an account?</span>
+                <button class="secondary-button" onclick="showPage('login')">Login</button>
+            </div>
+            <div id="message"></div>
+        `;
+
+        // ---------------- DASHBOARD ----------------
+        pages["dashboard"] = `
+            <div id="top-bar">
+                <h1>Dashboard</h1>
+                <div>
+                    Balance: $<span id="balance">0.00</span>
+                    <button onclick="logout()">Logout</button>
                 </div>
-                <div id="message"></div>
-            `;
+            </div>
 
-            // --- Register ---
-            pages["register"] = `
-                <h1>Register</h1>
-                <input id="email" type="email" placeholder="Email">
-                <input id="password" type="password" placeholder="Password">
-                <button onclick="register()">Submit</button>
-                <div class="hint-row">
-                    <span>Already have an account?</span>
-                    <button class="secondary-button" onclick="showPage('login')">Login</button>
+            <h3>Portfolio</h3>
+            <ul id="portfolio"></ul>
+
+            <input id="addBalanceInput" type="number" placeholder="Deposit amount">
+            <button onclick="addBalance()">Add Balance</button>
+
+            <button onclick="showPage('stocks')">Go to Stocks</button>
+        `;
+
+        // ---------------- STOCKS ----------------
+        pages["stocks"] = `
+            <div id="top-bar">
+                <h1>Stocks</h1>
+                <div>
+                    Balance: $<span id="balance">0.00</span>
+                    <button onclick="logout()">Logout</button>
                 </div>
-                <div id="message"></div>
-            `;
+            </div>
 
-            // --- Dashboard ---
-            pages["dashboard"] = `
-                <div id="top-bar">
-                    <h1>Dashboard</h1>
-                    <div style="display:flex; align-items:center; justify-content:flex-end; gap:10px;">
-                        <button class="secondary-button" onclick="logout()">Logout</button>
-                        <span>Kontostand: $<span id="balance">0.00</span></span>
-                    </div>
+            <input id="search" placeholder="Search..." oninput="filterStocks()">
+
+            <table id="stocks-table">
+                <thead>
+                    <tr>
+                        <th>Symbol</th>
+                        <th>Price</th>
+                        <th>Change</th>
+                        <th>Chart</th>
+                    </tr>
+                </thead>
+                <tbody id="stocks-body"></tbody>
+            </table>
+
+            <button onclick="showPage('dashboard')">Back</button>
+        `;
+        
+        
+        // ---------------- STOCK DETAIL ----------------
+        pages["stockDetail"] = `
+            <div id="top-bar">
+                <h1 id="stock-title"></h1>
+                <div>
+                    Balance: $<span id="balance">0.00</span>
+                    <button onclick="logout()">Logout</button>
                 </div>
-                <ul id="portfolio-list"></ul>
-                <input id="addBalanceInput" type="number" placeholder="Betrag aufladen" style="margin-top:10px; padding:5px 10px;">
-                <button onclick="addBalance()">Guthaben aufladen</button>
-                <button onclick="showPage('stocks')">Stocks Market</button>
-            `;
+            </div>
+        
+            <canvas id="bigChart" height="200"></canvas>
+        
+            <h3>Trade</h3>
+        
+            <input id="amount" type="number" placeholder="Quantity">
+        
+            <button onclick="buySelectedStock()">Buy</button>
+            <button onclick="sellSelectedStock()">Sell</button>
+        
+            <button onclick="showPage('stocks')">Back</button>
+        `;
+                
+                
+        // ---------------- PAGE SWITCH ----------------
+        function showPage(page){
+            document.getElementById("app-container").innerHTML = pages[page];
 
-            // --- Stocks Market ---
-            pages["stocks"] = `
-                <div id="top-bar">
-                    <h1>Stocks Market</h1>
-                    <div style="display:flex; align-items:center; justify-content:flex-end; gap:10px;">
-                        <button class="secondary-button" onclick="logout()">Logout</button>
-                        <span>Kontostand: $<span id="balance">0.00</span></span>
-                    </div>
-                </div>
-                <input id="search" type="text" placeholder="Suche nach Aktie..." oninput="filterStocks()">
-                <table id="stocks-table">
-                    <thead>
-                        <tr>
-                            <th>Name</th>
-                            <th>Preis</th>
-                            <th>%Change</th>
-                            <th>Chart</th>
-                        </tr>
-                    </thead>
-                    <tbody id="stocks-body"></tbody>
-                </table>
-                <button class="secondary-button" onclick="showPage('dashboard')">Back</button>
-            `;
-
-            pages["buySell"] = `<div id="buy-sell-container"></div>`;
-
-            function showPage(page){
-                document.getElementById('app-container').innerHTML = pages[page];
-                if(page==="dashboard") renderPortfolio();
-                if(page==="stocks") loadStocks();
+            if(page === "dashboard"){
+                renderPortfolio();
+                refreshBalance();
             }
 
-            function renderPortfolio(){
-                const list = document.getElementById('portfolio-list');
-                list.innerHTML = portfolio.length ? portfolio.map(s=>`<li>${s}</li>`).join('') : '<li>No stocks yet</li>';
-                document.getElementById('balance').innerText = balance.toFixed(2);
+            if(page === "stocks"){
+                loadStocks();
+                refreshBalance();
+            }
+        }
+
+        // ---------------- LOGIN ----------------
+        async function login(){
+
+            const email = document.getElementById("email").value;
+            const password = document.getElementById("password").value;
+
+            const res = await fetch("/login", {
+                method:"POST",
+                headers:{"Content-Type":"application/json"},
+                body:JSON.stringify({email,password})
+            });
+
+            const data = await res.json();
+
+            if(data.success){
+
+                currentUser = data.userId;
+                balance = data.balance;
+                await loadPortfolio();
+
+                showPage("dashboard");
+
+            } else {
+                document.getElementById("message").innerText = data.message;
+            }
+        }
+
+        // ---------------- REGISTER ----------------
+        async function register(){
+
+            const email = document.getElementById("email").value;
+            const password = document.getElementById("password").value;
+
+            const res = await fetch("/register", {
+                method:"POST",
+                headers:{"Content-Type":"application/json"},
+                body:JSON.stringify({email,password})
+            });
+
+            const text = await res.text();
+            document.getElementById("message").innerText = text;
+        }
+
+        // ---------------- BALANCE ----------------
+        async function refreshBalance(){
+
+            const res = await fetch("/balance?userId=" + currentUser);
+            const data = await res.json();
+
+            balance = data.balance;
+
+            const el = document.getElementById("balance");
+            if(el) el.innerText = balance.toFixed(2);
+        }
+
+        async function addBalance(){
+
+            const amount = parseFloat(document.getElementById("addBalanceInput").value);
+
+            if(isNaN(amount) || amount <= 0){
+                alert("Invalid amount");
+                return;
             }
 
-            // --- Login ---
-            async function login(){
-                const email=document.getElementById('email').value;
-                const password=document.getElementById('password').value;
-                const res = await fetch('/login',{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email,password})});
-                const text = await res.text();
-                document.getElementById('message').innerText = text;
-                if(text.includes('Login successful')){
-                    currentUser = 1;
-                    const match = text.match(/Balance: ([0-9.]+)/);
-                    if(match) balance = parseFloat(match[1]);
-                    showPage('dashboard');
-                }
+            const res = await fetch("/addBalance", {
+                method:"POST",
+                headers:{"Content-Type":"application/json"},
+                body:JSON.stringify({
+                    userId: currentUser,
+                    amount: amount
+                })
+            });
+
+            const data = await res.json();
+
+            if(data.success){
+                await refreshBalance();
+                document.getElementById("addBalanceInput").value = "";
             }
+        }
 
-            // --- Register ---
-            async function register(){
-                const email=document.getElementById('email').value;
-                const password=document.getElementById('password').value;
-                const res = await fetch('/register',{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email,password})});
-                const text = await res.text();
-                document.getElementById('message').innerText = text;
-            }
+        // ---------------- STOCKS ----------------
+        async function loadStocks(){
 
-            // --- Guthaben aufladen ---
-            async function addBalance(){
-                const amount = parseFloat(document.getElementById('addBalanceInput').value);
-                if(isNaN(amount) || amount<=0) return alert("Bitte gültigen Betrag eingeben");
-                const res = await fetch('/addBalance',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userId: currentUser, amount})});
-                const text = await res.text();
-                if(text.includes("success")){
-                    balance += amount;
-                    document.getElementById('balance').innerText = balance.toFixed(2);
-                    document.getElementById('addBalanceInput').value = '';
-                } else alert("Fehler beim Aufladen");
-            }
+            const res = await fetch("/stocks/list");
+            allStocks = await res.json();
 
-            function logout(){portfolio=[];currentUser=null;balance=0; showPage('login');}
+            renderStocks(allStocks);
+        }
 
-            // --- Stocks Table ---
-            let allStocks = [];
-            async function loadStocks(){
-                const res = await fetch("/stocks/list");
-                allStocks = await res.json();
-                renderStockTable(allStocks);
-            }
-
-            function renderStockTable(stocks){
-                const tbody = document.getElementById('stocks-body');
-                tbody.innerHTML = '';
-                stocks.forEach(stock=>{
-                    const row = document.createElement('tr');
-                    const chartId = 'chart-'+stock.symbol;
-                    row.innerHTML = `<td>${stock.symbol}</td>
-                                     <td>${stock.price}</td>
-                                     <td>${stock.change}</td>
-                                     <td><canvas id="${chartId}" width="200" height="100"></canvas></td>`;
-                    row.onclick = ()=>showBuySell(stock.symbol);
-                    tbody.appendChild(row);
-
-                    const ctx = document.getElementById(chartId).getContext('2d');
-                    new Chart(ctx,{type:'line',data:{labels:['Mon','Tue','Wed','Thu','Fri'],datasets:[{label:stock.symbol,data:[10,12,11,15,14],borderColor:'blue',fill:false}] }});
+        function renderStocks(stocks){
+        
+            const tbody =
+                document.getElementById("stocks-body");
+        
+            tbody.innerHTML = "";
+        
+            stocks.forEach((s,index) => {
+        
+                const row =
+                    document.createElement("tr");
+        
+                row.innerHTML = `
+                    <td>
+                        <a href="#" onclick="openStock('${s.symbol}')">
+                            ${s.symbol}
+                        </a>
+                    </td>
+                    <td>${s.price}</td>
+                    <td>${s.change}</td>
+        
+                    <td>
+                        <canvas
+                            id="chart-${index}"
+                            width="150"
+                            height="60">
+                        </canvas>
+                    </td>
+                `;
+        
+                tbody.appendChild(row);
+        
+                const ctx = document
+                    .getElementById(`chart-${index}`)
+                    .getContext("2d");
+        
+                new Chart(ctx, {
+        
+                    type: 'line',
+        
+                    data: {
+        
+                        labels: s.chart.map((_,i)=>i),
+        
+                        datasets: [{
+        
+                            data: s.chart,
+        
+                            borderColor:
+                                s.change.includes("-")
+                                    ? "#ff4d4d"
+                                    : "#00c853",
+        
+                            borderWidth: 2,
+        
+                            pointRadius: 0,
+        
+                            tension: 0.4,
+        
+                            fill: false
+                        }]
+                    },
+        
+                    options: {
+        
+                        responsive:false,
+        
+                        plugins:{
+                            legend:{
+                                display:false
+                            }
+                        },
+        
+                        scales:{
+                            x:{
+                                display:false
+                            },
+                            y:{
+                                display:false
+                            }
+                        }
+                    }
                 });
-            }
+            });
+        }
 
-            function filterStocks(){
-                const query = document.getElementById('search').value.toLowerCase();
-                const filtered = allStocks.filter(s=>s.symbol.toLowerCase().includes(query));
-                renderStockTable(filtered);
-            }
+        function filterStocks(){
 
-            function showBuySell(symbol){
-                document.getElementById('app-container').innerHTML = `
-                    <h1>${symbol}</h1>
-                    <input id="amount" type="number" placeholder="Shares">
-                    <button onclick="buyStock('${symbol}')">Buy</button>
-                    <button onclick="sellStock('${symbol}')">Sell</button>
-                    <button onclick="showPage('stocks')">Back</button>`;
-            }
+            const q = document.getElementById("search").value.toLowerCase();
 
-            function buyStock(symbol){
-                const amt = Number(document.getElementById('amount').value);
-                portfolio.push(symbol);
-                balance -= amt*10;
-                alert('Bought '+amt+' '+symbol);
-                showPage('stocks');
+            renderStocks(allStocks.filter(s =>
+                s.symbol.toLowerCase().includes(q)
+            ));
+        }
+        
+        // ---------------- BUY & SELL ----------------
+        async function sellSelectedStock(){
+        
+            const quantity =
+                Number(document.getElementById("amount").value);
+        
+            const stock =
+                allStocks.find(s => s.symbol === selectedStock);
+        
+            if(!stock){
+                alert("Stock not loaded");
+                return;
             }
-
-            function sellStock(symbol){
-                const amt = Number(document.getElementById('amount').value);
-                portfolio = portfolio.filter(s=>s!==symbol);
-                balance += amt*10;
-                alert('Sold '+amt+' '+symbol);
-                showPage('stocks');
+        
+            const price = Number(stock.price);
+        
+            const res = await fetch("/sell", {
+                method:"POST",
+                headers:{"Content-Type":"application/json"},
+                body:JSON.stringify({
+                    userId: currentUser,
+                    symbol: selectedStock,
+                    quantity,
+                    price
+                })
+            });
+        
+            const data = await res.json();
+        
+            if(data.success){
+                alert("Sold!");
+                await refreshBalance();
+                await loadPortfolio();
+            } else {
+                alert(data.message);
             }
+        }
+        
+        async function buySelectedStock(){
+        
+                      const quantity =
+                          Number(document.getElementById("amount").value);
+        
+                      const stock =
+                          allStocks.find(s => s.symbol === selectedStock);
+        
+                      if(!stock){
+                          alert("Stock not loaded");
+                          return;
+                      }
+        
+                      const price = Number(stock.price);
+        
+                      const res = await fetch("/buy", {
+                          method:"POST",
+                          headers:{"Content-Type":"application/json"},
+                          body:JSON.stringify({
+                              userId: currentUser,
+                              symbol: selectedStock,
+                              quantity,
+                              price
+                          })
+                      });
+        
+                      const data = await res.json();
+        
+                      if(data.success){
+                          alert("Bought!");
+                          await refreshBalance();
+                          await loadPortfolio();
+                      } else {
+                          alert(data.message);
+                      }
+                  }
+                
+        // ---------------- OPEN STOCK ----------------
+        async function openStock(symbol){
+        
+            selectedStock = symbol;
+        
+            showPage("stockDetail");
+        
+            document.getElementById("stock-title").innerText = symbol;
+        
+            await refreshBalance();
+            await loadStockChart(symbol);
+        }        
+        
+        async function loadStockChart(symbol){
+        
+            const res = await fetch("/stocks/list");
+            const data = await res.json();
+        
+            const stock = data.find(s => s.symbol === symbol);
+        
+            const ctx =
+                document.getElementById("bigChart").getContext("2d");
+        
+            new Chart(ctx, {
+        
+                type: "line",
+        
+                data: {
+        
+                    labels: stock.chart.map((_,i)=>i),
+        
+                    datasets: [{
+                        data: stock.chart,
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        tension: 0.4,
+                        fill: false
+                    }]
+                },
+        
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        x: { display: false },
+                        y: { display: true }
+                    }
+                }
+            });
+        }
 
-            showPage('login');
+        // ---------------- PORTFOLIO ----------------
+        function renderPortfolio(){
+        
+            const el = document.getElementById("portfolio");
+        
+            if(!el) return;
+        
+            if(portfolio.length === 0){
+                el.innerHTML = "<li>No stocks</li>";
+                return;
+            }
+        
+            el.innerHTML = portfolio.map(p => `
+                <li>
+                    ${p.symbol} —
+                    ${p.quantity} shares —
+                    avg $${p.avgPrice.toFixed(2)}
+                </li>
+            `).join("");
+        }
+
+        // ---------------- LOGOUT ----------------
+        function logout(){
+            currentUser = null;
+            balance = 0;
+            portfolio = [];
+            showPage("login");
+        }
+
+        showPage("login");
+
         </script>
         </body>
         </html>
@@ -231,21 +593,38 @@ public class SPAHandler implements HttpHandler {
         send(exchange, html);
     }
 
+    // ---------------- JSON PARSER ----------------
     public static HashMap<String,String> parseJson(String json){
+
         HashMap<String,String> map = new HashMap<>();
-        json=json.replace("{","").replace("}","").replace("\"","");
-        String[] pairs=json.split(",");
-        for(String pair:pairs){
-            String[] kv=pair.split(":");
-            if(kv.length==2) map.put(kv[0].trim(),kv[1].trim());
+
+        json = json.replace("{","")
+                .replace("}","")
+                .replace("\"","");
+
+        String[] pairs = json.split(",");
+
+        for(String pair : pairs){
+            String[] kv = pair.split(":");
+            if(kv.length == 2){
+                map.put(kv[0].trim(), kv[1].trim());
+            }
         }
+
         return map;
     }
 
-    public static void send(HttpExchange exchange, String response) throws java.io.IOException{
-        exchange.sendResponseHeaders(200,response.getBytes().length);
-        OutputStream os=exchange.getResponseBody();
+    // ---------------- RESPONSE HELPER ----------------
+    public static void send(HttpExchange exchange, String response) throws IOException {
+
+        exchange.getResponseHeaders().set("Content-Type","text/html");
+
+        exchange.sendResponseHeaders(200, response.getBytes().length);
+
+        OutputStream os = exchange.getResponseBody();
+
         os.write(response.getBytes());
+
         os.close();
     }
 }
