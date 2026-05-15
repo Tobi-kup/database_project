@@ -447,6 +447,11 @@ public class SPAHandler implements HttpHandler {
         
             const quantity =
                 Number(document.getElementById("amount").value);
+                
+            if (!Number.isInteger(quantity) || quantity <= 0) {
+                alert("Please enter a valid positive quantity");
+                return;
+            }
         
             const stock =
                 allStocks.find(s => s.symbol === selectedStock);
@@ -484,6 +489,11 @@ public class SPAHandler implements HttpHandler {
         
                       const quantity =
                           Number(document.getElementById("amount").value);
+                          
+                      if (!Number.isInteger(quantity) || quantity <= 0) {
+                                  alert("Please enter a valid positive quantity");
+                                  return;
+                              }
         
                       const stock =
                           allStocks.find(s => s.symbol === selectedStock);
