@@ -1,0 +1,7 @@
+todo:
+- implement real charts for the stocks
+- implement ability to change the timeline in the StockDetailed page
+- change the style of the Portfolio in the Dashboard
+- implement functionality to buy/sell parts of a stock
+- increase the window size of the 
+  Dashboard page / Stocks page / Detailed Stocks page
