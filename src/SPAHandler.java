@@ -119,7 +119,8 @@ public class SPAHandler implements HttpHandler {
         let balance = 0;
         let allStocks = [];
         let selectedStock = null;
-        let portfolio = []
+        let portfolio = [];
+        let bigChartInstance = null;
 
         const pages = {};
         
@@ -227,18 +228,33 @@ public class SPAHandler implements HttpHandler {
                 
                 
         // ---------------- PAGE SWITCH ----------------
-        function showPage(page){
+        function showPage(page, push = true) {
+        
+            if (bigChartInstance) {
+                bigChartInstance.destroy();
+                bigChartInstance = null;
+            }
+        
             document.getElementById("app-container").innerHTML = pages[page];
-
-            if(page === "dashboard"){
-                renderPortfolio();
-                refreshBalance();
+        
+            if (push) {
+                history.pushState({ page }, "", `#${page}`);
             }
-
-            if(page === "stocks"){
-                loadStocks();
-                refreshBalance();
-            }
+        
+            requestAnimationFrame(() => {
+                    
+                if (page === "dashboard") {
+                    renderPortfolio();
+                    loadPortfolio();
+                    refreshBalance(); }
+                    
+                if (page === "stocks") {
+                    loadStocks();
+                    refreshBalance(); }
+                    
+               if (page === "stockDetail") {
+                    refreshBalance();}
+            });
         }
 
         // ---------------- LOGIN ----------------
@@ -345,7 +361,7 @@ public class SPAHandler implements HttpHandler {
         
                 row.innerHTML = `
                     <td>
-                        <a href="#" onclick="openStock('${s.symbol}')">
+                        <a onclick="openStock('${s.symbol}')">
                             ${s.symbol}
                         </a>
                     </td>
@@ -503,57 +519,58 @@ public class SPAHandler implements HttpHandler {
                 
         // ---------------- OPEN STOCK ----------------
         async function openStock(symbol){
-        
             selectedStock = symbol;
-        
             showPage("stockDetail");
-        
-            document.getElementById("stock-title").innerText = symbol;
-        
             await refreshBalance();
-            await loadStockChart(symbol);
-        }        
+            await waitForElement("bigChart");
+            loadStockChart(symbol);
+        }
         
         async function loadStockChart(symbol){
         
-            const res = await fetch("/stocks/list");
-            const data = await res.json();
+             const res = await fetch("/stocks/list");
+             const data = await res.json();
         
-            const stock = data.find(s => s.symbol === symbol);
+             const stock = data.find(s => s.symbol === symbol);
+             const canvas = document.getElementById("bigChart");
         
-            const ctx =
-                document.getElementById("bigChart").getContext("2d");
+             if (!canvas) return;
         
-            new Chart(ctx, {
+             const ctx = canvas.getContext("2d");
         
-                type: "line",
+             if (bigChartInstance) {
+                 bigChartInstance.destroy();
+             }
         
-                data: {
+             bigChartInstance = new Chart(ctx, {
+                 type: "line",
+                 data: {
+                     labels: stock.chart.map((_,i)=>i),
+                     datasets: [{
+                         data: stock.chart,
+                         borderWidth: 2,
+                         pointRadius: 0,
+                         tension: 0.4,
+                         fill: false
+                     }]
+                 },
+                 options: {
+                     responsive: true,
+                     plugins: { legend: { display: false } },
+                     scales: {
+                         x: { display: false },
+                         y: { display: true }
+                     }
+                 }
+             });
+         }
         
-                    labels: stock.chart.map((_,i)=>i),
-        
-                    datasets: [{
-                        data: stock.chart,
-                        borderWidth: 2,
-                        pointRadius: 0,
-                        tension: 0.4,
-                        fill: false
-                    }]
-                },
-        
-                options: {
-                    responsive: true,
-                    plugins: {
-                        legend: { display: false }
-                    },
-                    scales: {
-                        x: { display: false },
-                        y: { display: true }
-                    }
-                }
-            });
+        async function waitForElement(id) {
+            while (!document.getElementById(id)) {
+                await new Promise(r => requestAnimationFrame(r));
+            }
         }
-
+                
         // ---------------- PORTFOLIO ----------------
         function renderPortfolio(){
         
@@ -584,11 +601,20 @@ public class SPAHandler implements HttpHandler {
         }
 
         showPage("login");
+        history.replaceState({ page: "login" }, "", "#login");
+        
+        window.addEventListener("popstate", (event) => {
+            const page = event.state?.page || "login";
+            showPage(page, false);
+        
+        });
+        
 
         </script>
         </body>
         </html>
         """;
+
 
         send(exchange, html);
     }
